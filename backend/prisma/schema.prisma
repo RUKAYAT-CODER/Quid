@@ -1,19 +1,77 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  EARNER
+  CREATOR
+}
+
+enum MissionStatus {
+  OPEN
+  STARTED
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
-  fullName String? @map("full_name")
+  id            String   @id @default(uuid())
+  walletAddress String   @unique
+  role          UserRole @default(EARNER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdMissions Mission[]
+  submissions     Submission[]
+
+  @@map("users")
+}
+
+model Mission {
+  id              String        @id @default(uuid())
+  onChainId       BigInt?       @unique
+  title           String
+  description     String        @db.Text
+  rewardToken     String
+  rewardAmount    Decimal       @db.Decimal(20, 7)
+  maxParticipants Int
+  minAssetToken   String?
+  minAssetAmount  Decimal?      @db.Decimal(20, 7)
+  status          MissionStatus @default(OPEN)
+  creatorId       String
+  creator         User          @relation(fields: [creatorId], references: [id])
+  submissions     Submission[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("missions")
+}
+
+model Submission {
+  id        String           @id @default(uuid())
+  content   String           @db.Text
+  ipfsCid   String
+  status    SubmissionStatus @default(PENDING)
+  missionId String
+  mission   Mission          @relation(fields: [missionId], references: [id])
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([missionId, userId])
+  @@map("submissions")
 }
