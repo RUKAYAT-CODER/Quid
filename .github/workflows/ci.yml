@@ -89,8 +89,6 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-    env:
-      DATABASE_URL: postgresql://quid:quid@localhost:5432/quid_dev?schema=public
 
     steps:
       - name: Checkout code
@@ -106,9 +104,6 @@ jobs:
 
       - name: Lint Backend
         run: npm run lint
-
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
 
       - name: Build Backend
         run: npm run build
