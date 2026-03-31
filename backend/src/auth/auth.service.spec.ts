@@ -1,5 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Keypair, WebAuth } from '@stellar/stellar-sdk';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +16,25 @@ const mockConfig: Partial<Record<string, string>> = {
   STELLAR_NETWORK: 'Test SDF Network ; September 2015',
 };
 
+const mockConfigService = {
+  getOrThrow: (key: string) => {
+    if (mockConfig[key] === undefined) throw new Error(`Missing ${key}`);
+    return mockConfig[key];
+  },
+  get: (key: string, defaultValue?: string) => mockConfig[key] ?? defaultValue,
+};
+
+const mockPrismaService = {
+  user: {
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+  },
+};
+
+const mockJwtService = {
+  sign: jest.fn().mockReturnValue('mock.jwt.token'),
+};
+
 describe('AuthService - generateChallenge', () => {
   let service: AuthService;
 
@@ -22,22 +42,9 @@ describe('AuthService - generateChallenge', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        {
-          provide: PrismaService,
-          useValue: {},
-        },
-        {
-          provide: ConfigService,
-          useValue: {
-            getOrThrow: (key: string) => {
-              if (mockConfig[key] === undefined)
-                throw new Error(`Missing ${key}`);
-              return mockConfig[key];
-            },
-            get: (key: string, defaultValue?: string) =>
-              mockConfig[key] ?? defaultValue,
-          },
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -82,5 +89,76 @@ describe('AuthService - generateChallenge', () => {
 
   it('throws BadRequestException for an empty address', () => {
     expect(() => service.generateChallenge('')).toThrow(BadRequestException);
+  });
+});
+
+describe('AuthService - verifySignedPayload', () => {
+  let service: AuthService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: JwtService, useValue: mockJwtService },
+      ],
+    }).compile();
+
+    service = module.get<AuthService>(AuthService);
+  });
+
+  it('upserts the user and returns { user, access_token } on first login', async () => {
+    const networkPassphrase = 'Test SDF Network ; September 2015';
+    const challenge = WebAuth.buildChallengeTx(
+      SERVER_KEYPAIR,
+      CLIENT_KEYPAIR.publicKey(),
+      'localhost',
+      300,
+      networkPassphrase,
+      'localhost',
+    );
+    const { tx } = WebAuth.readChallengeTx(
+      challenge,
+      SERVER_KEYPAIR.publicKey(),
+      networkPassphrase,
+      'localhost',
+      'localhost',
+    );
+    tx.sign(CLIENT_KEYPAIR);
+    const signedXdr = tx.toXDR();
+
+    const mockUser = {
+      id: 'uuid-123',
+      address: CLIENT_KEYPAIR.publicKey(),
+      email: null,
+      displayName: null,
+      bio: null,
+      role: 'EARNER',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockPrismaService.user.upsert.mockResolvedValue(mockUser);
+
+    const result = await service.verifySignedPayload(signedXdr);
+
+    expect(mockPrismaService.user.upsert).toHaveBeenCalledWith({
+      where: { address: CLIENT_KEYPAIR.publicKey() },
+      update: {},
+      create: { address: CLIENT_KEYPAIR.publicKey() },
+    });
+    expect(mockJwtService.sign).toHaveBeenCalledWith({
+      sub: 'uuid-123',
+      address: CLIENT_KEYPAIR.publicKey(),
+    });
+    expect(result).toEqual({ user: mockUser, access_token: 'mock.jwt.token' });
+  });
+
+  it('throws UnauthorizedException for an invalid signed XDR', async () => {
+    await expect(service.verifySignedPayload('invalid-xdr')).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });

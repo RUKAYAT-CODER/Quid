@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { User } from '@prisma/client';
 import {
   Keypair,
   Networks,
@@ -33,31 +34,25 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly serverAccountId: string,
-    private readonly networkPassphrase: string,
-    private readonly horizonUrl: string,
     private readonly jwtService: JwtService,
   ) {}
 
   private getSep10Config() {
-    const homeDomain = this.config.get<string>('STELLAR_HOME_DOMAIN') || '';
-    const webAuthDomain =
-      this.config.get<string>('STELLAR_WEB_AUTH_DOMAIN') || '';
-
-    if (!homeDomain) {
-      throw new Error('STELLAR_HOME_DOMAIN environment variable is required');
-    }
-
-    if (!webAuthDomain) {
-      throw new Error(
-        'STELLAR_WEB_AUTH_DOMAIN environment variable is required',
-      );
-    }
+    const serverSecret = this.config.getOrThrow<string>(
+      'STELLAR_SERVER_SECRET',
+    );
+    const serverAccountId = Keypair.fromSecret(serverSecret).publicKey();
+    const networkPassphrase = this.config.get<string>(
+      'STELLAR_NETWORK',
+      Networks.TESTNET,
+    );
+    const homeDomain = this.config.getOrThrow<string>('HOME_DOMAIN');
+    const webAuthDomain = this.config.getOrThrow<string>('WEB_AUTH_DOMAIN');
 
     return {
-      serverAccountId: this.serverAccountId,
+      serverAccountId,
       homeDomain,
-      networkPassphrase: this.networkPassphrase,
+      networkPassphrase,
       webAuthDomain,
     };
   }
@@ -106,7 +101,9 @@ export class AuthService {
     };
   }
 
-  verifySignedPayload(_signedXdr: string): string {
+  async verifySignedPayload(
+    _signedXdr: string,
+  ): Promise<{ user: User; access_token: string }> {
     const { serverAccountId, homeDomain, networkPassphrase, webAuthDomain } =
       this.getSep10Config();
 
@@ -134,9 +131,16 @@ export class AuthService {
     }
   }
 
-  private issueTokenForAddress(address: string): string {
-    const payload = { sub: address };
-    return this.jwtService.sign(payload);
+  private async issueTokenForAddress(
+    address: string,
+  ): Promise<{ user: User; access_token: string }> {
+    const user = await this.prisma.user.upsert({
+      where: { address },
+      update: {},
+      create: { address },
+    });
+    const access_token = this.jwtService.sign({ sub: user.id, address });
+    return { user, access_token };
   }
 
   private getSep10ErrorMessage(error: unknown): string {
@@ -151,7 +155,7 @@ export class AuthService {
     return 'Invalid SEP-10 challenge response';
   }
 
-  validateUser(publicKey: string) {
-    return this.prisma.user.findUnique({ where: { email: publicKey } });
+  validateUser(address: string) {
+    return this.prisma.user.findUnique({ where: { address } });
   }
 }

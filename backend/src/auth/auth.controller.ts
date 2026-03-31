@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { VerifySignatureDto } from './dto/verify-signature.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -8,5 +9,10 @@ export class AuthController {
   @Get('challenge')
   generateChallenge(@Query('address') address: string) {
     return this.authService.generateChallenge(address);
+  }
+
+  @Post('verify')
+  verify(@Body() dto: VerifySignatureDto) {
+    return this.authService.verifySignedPayload(dto.signedXdr);
   }
 }
