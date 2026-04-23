@@ -19,6 +19,11 @@ describe('MissionsService', () => {
   let prisma: {
     mission: { findMany: jest.Mock; findUnique: jest.Mock };
     submission: { findMany: jest.Mock };
+    missionDraft: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
   };
 
   beforeEach(() => {
@@ -29,6 +34,11 @@ describe('MissionsService', () => {
       },
       submission: {
         findMany: jest.fn(),
+      },
+      missionDraft: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
       },
     };
 
@@ -190,6 +200,75 @@ describe('MissionsService', () => {
       await expect(
         service.getMissionSubmissions('mission-1', '0xother'),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('saveDraft', () => {
+    it('creates a draft when no existing draft is found', async () => {
+      prisma.missionDraft.findFirst.mockResolvedValue(null);
+      const createdDraft = {
+        id: 'draft-1',
+        ownerAddress: '0xabc',
+        title: 'New Draft',
+        data: { field: 'value' },
+      };
+      prisma.missionDraft.create.mockResolvedValue(createdDraft);
+
+      const result = await service.saveDraft('0xabc', {
+        title: 'New Draft',
+        data: { field: 'value' },
+      });
+
+      expect(prisma.missionDraft.findFirst).toHaveBeenCalledWith({
+        where: { ownerAddress: '0xabc' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      expect(prisma.missionDraft.create).toHaveBeenCalledWith({
+        data: {
+          ownerAddress: '0xabc',
+          title: 'New Draft',
+          data: { field: 'value' },
+        },
+      });
+      expect(prisma.missionDraft.update).not.toHaveBeenCalled();
+      expect(result).toEqual(createdDraft);
+    });
+
+    it('updates the latest draft when one exists', async () => {
+      const existingDraft = {
+        id: 'draft-1',
+        ownerAddress: '0xabc',
+        title: 'Old Draft',
+        data: { old: true },
+        updatedAt: new Date('2026-01-01'),
+      };
+      prisma.missionDraft.findFirst.mockResolvedValue(existingDraft);
+      const updatedDraft = {
+        id: 'draft-1',
+        ownerAddress: '0xabc',
+        title: 'Updated Draft',
+        data: { field: 'updated' },
+      };
+      prisma.missionDraft.update.mockResolvedValue(updatedDraft);
+
+      const result = await service.saveDraft('0xabc', {
+        title: 'Updated Draft',
+        data: { field: 'updated' },
+      });
+
+      expect(prisma.missionDraft.findFirst).toHaveBeenCalledWith({
+        where: { ownerAddress: '0xabc' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      expect(prisma.missionDraft.update).toHaveBeenCalledWith({
+        where: { id: 'draft-1' },
+        data: {
+          title: 'Updated Draft',
+          data: { field: 'updated' },
+        },
+      });
+      expect(prisma.missionDraft.create).not.toHaveBeenCalled();
+      expect(result).toEqual(updatedDraft);
     });
   });
 });

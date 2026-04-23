@@ -9,6 +9,7 @@ import {
   ListMissionsQueryDto,
   MissionListSort,
 } from './dto/list-missions-query.dto';
+import { SaveDraftDto } from './dto/save-draft.dto';
 
 const missionListInclude = {
   owner: {
@@ -69,6 +70,33 @@ export class MissionsService {
     }
 
     return mission as unknown;
+  }
+
+  async saveDraft(ownerAddress: string, dto: SaveDraftDto): Promise<unknown> {
+    const latestDraft = await this.prisma.missionDraft.findFirst({
+      where: { ownerAddress },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (latestDraft) {
+      const updated = await this.prisma.missionDraft.update({
+        where: { id: latestDraft.id },
+        data: {
+          title: dto.title,
+          data: dto.data,
+        },
+      });
+      return updated;
+    }
+
+    const created = await this.prisma.missionDraft.create({
+      data: {
+        ownerAddress,
+        title: dto.title,
+        data: dto.data,
+      },
+    });
+    return created;
   }
 
   async getMissionSubmissions(
