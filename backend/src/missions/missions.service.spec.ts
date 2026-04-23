@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MissionsService } from './missions.service';
 import { MissionListSort } from './dto/list-missions-query.dto';
@@ -16,13 +16,19 @@ const detailInclude = {
 
 describe('MissionsService', () => {
   let service: MissionsService;
-  let prisma: { mission: { findMany: jest.Mock; findUnique: jest.Mock } };
+  let prisma: {
+    mission: { findMany: jest.Mock; findUnique: jest.Mock };
+    submission: { findMany: jest.Mock };
+  };
 
   beforeEach(() => {
     prisma = {
       mission: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+      },
+      submission: {
+        findMany: jest.fn(),
       },
     };
 
@@ -94,7 +100,9 @@ describe('MissionsService', () => {
       };
       prisma.mission.findMany.mockResolvedValue([mockMission]);
 
-      const result = await service.listPublicMissions({}) as typeof mockMission[];
+      const result = (await service.listPublicMissions(
+        {},
+      )) as (typeof mockMission)[];
 
       expect(result[0].owner.address).toBe('0xabc');
       expect(result[0].owner.displayName).toBe('Alice');
@@ -106,12 +114,18 @@ describe('MissionsService', () => {
     it('returns a mission with owner address, displayName, email, and submission count', async () => {
       const mockMission = {
         id: 'mission-1',
-        owner: { address: '0xabc', displayName: 'Alice', email: 'alice@example.com' },
+        owner: {
+          address: '0xabc',
+          displayName: 'Alice',
+          email: 'alice@example.com',
+        },
         _count: { submissions: 5 },
       };
       prisma.mission.findUnique.mockResolvedValue(mockMission);
 
-      const result = await service.getMission('mission-1') as typeof mockMission;
+      const result = (await service.getMission(
+        'mission-1',
+      )) as typeof mockMission;
 
       expect(prisma.mission.findUnique).toHaveBeenCalledWith({
         where: { id: 'mission-1' },
@@ -127,6 +141,55 @@ describe('MissionsService', () => {
       await expect(service.getMission('nonexistent')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getMissionSubmissions', () => {
+    it('returns submissions ordered by createdAt desc for the mission owner', async () => {
+      prisma.mission.findUnique.mockResolvedValue({
+        id: 'mission-1',
+        ownerAddress: '0xabc',
+      });
+      const mockSubmissions = [
+        { id: 'sub-2', createdAt: new Date('2026-01-02') },
+        { id: 'sub-1', createdAt: new Date('2026-01-01') },
+      ];
+      prisma.submission.findMany.mockResolvedValue(mockSubmissions);
+
+      const result = await service.getMissionSubmissions('mission-1', '0xabc');
+
+      expect(result).toEqual(mockSubmissions);
+      expect(prisma.submission.findMany).toHaveBeenCalledWith({
+        where: { missionId: 'mission-1' },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          hunter: {
+            select: {
+              address: true,
+              displayName: true,
+            },
+          },
+        },
+      });
+    });
+
+    it('throws NotFoundException when mission does not exist', async () => {
+      prisma.mission.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getMissionSubmissions('nonexistent', '0xabc'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException when user is not the mission owner', async () => {
+      prisma.mission.findUnique.mockResolvedValue({
+        id: 'mission-1',
+        ownerAddress: '0xabc',
+      });
+
+      await expect(
+        service.getMissionSubmissions('mission-1', '0xother'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });
