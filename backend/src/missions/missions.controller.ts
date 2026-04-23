@@ -1,9 +1,26 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { Request } from 'express';
 import { MissionsService } from './missions.service';
 import { ListMissionsQueryDto } from './dto/list-missions-query.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 type AuthRequest = Request & { user: { address: string } };
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: string;
+    address: string;
+  };
+}
 
 @Controller('missions')
 export class MissionsController {
@@ -28,7 +45,10 @@ export class MissionsController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id/submissions')
-  submissions(@Param('id') id: string, @Req() req: AuthRequest): Promise<unknown> {
+  submissions(
+    @Param('id') id: string,
+    @Req() req: AuthRequest,
+  ): Promise<unknown> {
     return this.missionsService.getMissionSubmissions(id, req.user.address);
   }
 
