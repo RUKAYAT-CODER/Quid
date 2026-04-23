@@ -3,7 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { MissionStatus } from '@prisma/client';
+import { MissionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ListMissionsQueryDto,
@@ -83,7 +83,7 @@ export class MissionsService {
         where: { id: latestDraft.id },
         data: {
           title: dto.title,
-          data: dto.data,
+          data: dto.data as Prisma.InputJsonValue,
         },
       });
       return updated;
@@ -93,7 +93,7 @@ export class MissionsService {
       data: {
         ownerAddress,
         title: dto.title,
-        data: dto.data,
+        data: dto.data as Prisma.InputJsonValue,
       },
     });
     return created;
