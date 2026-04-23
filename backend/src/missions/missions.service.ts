@@ -79,11 +79,8 @@ export class MissionsService {
     });
   }
 
-  async saveDraft(id: string, body: string): Promise<unknown> {
-    return await this.prisma.mission.update({
-      where: { id },
-      data: { body, status: 'DRAFT' },
-    });
+  saveDraft(id: string, body: string): { id: string; body: string } {
+    return { id, body };
   }
 
   async getMissionSubmissions(
