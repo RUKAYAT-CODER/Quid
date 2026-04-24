@@ -26,26 +26,8 @@ export class MissionsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() req: AuthRequest): Promise<unknown> {
+  me(@Req() req: Request & { user: { address: string } }): Promise<unknown> {
     return this.missionsService.getMyMissions(req.user.address);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('draft')
-  saveDraft(
-    @Req() req: AuthRequest,
-    @Body() body: string,
-  ): { id: string; body: string } {
-    return this.missionsService.saveDraft(req.user.address, body);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get(':id/submissions')
-  submissions(
-    @Param('id') id: string,
-    @Req() req: AuthRequest,
-  ): Promise<unknown> {
-    return this.missionsService.getMissionSubmissions(id, req.user.address);
   }
 
   @Get(':id')
