@@ -6,10 +6,6 @@ import {
 
 import { MissionStatus, Prisma } from '@prisma/client';
 
-
-import { MissionStatus } from '@prisma/client';
-
-
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ListMissionsQueryDto,
@@ -94,16 +90,11 @@ export class MissionsService {
     return mission;
   }
 
-
-
   async saveDraft(
     ownerAddress: string,
     dto: SaveDraftDto,
   ): Promise<Prisma.MissionDraftGetPayload<null>> {
     const data = sanitizeDraftData(dto.data);
-
-
-  async saveDraft(ownerAddress: string, dto: SaveDraftDto): Promise<unknown> {
 
     const latestDraft = await this.prisma.missionDraft.findFirst({
       where: { ownerAddress },
@@ -115,11 +106,7 @@ export class MissionsService {
         where: { id: latestDraft.id },
         data: {
           title: dto.title,
-
           data,
-
-          data: dto.data as Prisma.InputJsonValue,
-
         },
       });
       return updated;
@@ -129,18 +116,11 @@ export class MissionsService {
       data: {
         ownerAddress,
         title: dto.title,
-
         data,
-
-        data: dto.data as Prisma.InputJsonValue,
-
       },
     });
     return created;
   }
-
-
-
 
   async getMissionSubmissions(
     missionId: string,

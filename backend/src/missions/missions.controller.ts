@@ -1,5 +1,3 @@
-
-
 import {
   Body,
   Controller,
@@ -17,15 +15,6 @@ import { ListMissionsQueryDto } from './dto/list-missions-query.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Prisma } from '@prisma/client';
-
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
-
-import { Request } from 'express';
-import { MissionsService } from './missions.service';
-import { ListMissionsQueryDto } from './dto/list-missions-query.dto';
-import { SaveDraftDto } from './dto/save-draft.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -63,22 +52,12 @@ export class MissionsController {
     return this.missionsService.getMissionSubmissions(id, req.user.address);
   }
 
-
-
   @Post('drafts')
   @UseGuards(JwtAuthGuard)
   saveDraft(
     @Body() dto: SaveDraftDto,
     @Req() req: AuthenticatedRequest,
-
   ): Promise<Prisma.MissionDraftGetPayload<null>> {
     return this.missionsService.saveDraft(req.user.address, dto);
   }
-
-
-
-  ): Promise<unknown> {
-    return this.missionsService.saveDraft(req.user.address, dto);
-  }
-
 }
