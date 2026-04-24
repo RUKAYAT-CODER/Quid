@@ -46,7 +46,7 @@ export class MissionsController {
   submissions(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
-  ): Promise<unknown> {
+  ): Promise<any> {
     return this.missionsService.getMissionSubmissions(id, req.user.address);
   }
 

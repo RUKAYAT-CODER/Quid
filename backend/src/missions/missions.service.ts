@@ -82,7 +82,6 @@ export class MissionsService {
     return mission;
   }
 
-
   async saveDraft(ownerAddress: string, dto: SaveDraftDto): Promise<unknown> {
     const latestDraft = await this.prisma.missionDraft.findFirst({
       where: { ownerAddress },
@@ -108,10 +107,6 @@ export class MissionsService {
       },
     });
     return created;
-
-  saveDraft(id: string, body: string): { id: string; body: string } {
-    return { id, body };
-
   }
 
   async getMissionSubmissions(
