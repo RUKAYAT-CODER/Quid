@@ -6,7 +6,9 @@ import {
 
 import { MissionStatus, Prisma } from '@prisma/client';
 
+
 import { MissionStatus } from '@prisma/client';
+
 
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -71,6 +73,14 @@ export class MissionsService {
     return missions;
   }
 
+  async getMyMissions(ownerAddress: string): Promise<unknown> {
+    return this.prisma.mission.findMany({
+      where: { ownerAddress },
+      orderBy: { createdAt: 'desc' },
+      include: missionListInclude,
+    });
+  }
+
   async getMission(id: string): Promise<unknown> {
     const mission = await this.prisma.mission.findUnique({
       where: { id },
@@ -85,11 +95,15 @@ export class MissionsService {
   }
 
 
+
   async saveDraft(
     ownerAddress: string,
     dto: SaveDraftDto,
   ): Promise<Prisma.MissionDraftGetPayload<null>> {
     const data = sanitizeDraftData(dto.data);
+
+
+  async saveDraft(ownerAddress: string, dto: SaveDraftDto): Promise<unknown> {
 
     const latestDraft = await this.prisma.missionDraft.findFirst({
       where: { ownerAddress },
@@ -101,7 +115,11 @@ export class MissionsService {
         where: { id: latestDraft.id },
         data: {
           title: dto.title,
+
           data,
+
+          data: dto.data as Prisma.InputJsonValue,
+
         },
       });
       return updated;
@@ -111,11 +129,17 @@ export class MissionsService {
       data: {
         ownerAddress,
         title: dto.title,
+
         data,
+
+        data: dto.data as Prisma.InputJsonValue,
+
       },
     });
     return created;
   }
+
+
 
 
   async getMissionSubmissions(

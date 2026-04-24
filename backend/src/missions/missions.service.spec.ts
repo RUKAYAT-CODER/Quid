@@ -47,6 +47,8 @@ describe('MissionsService', () => {
         create: jest.fn(),
       },
 
+
+
     };
 
     service = new MissionsService(prisma as unknown as PrismaService);
@@ -241,6 +243,7 @@ describe('MissionsService', () => {
       expect(result).toEqual(createdDraft);
     });
 
+
     it('converts null data to Prisma.JsonNull when creating a draft', async () => {
       prisma.missionDraft.findFirst.mockResolvedValue(null);
       const createdDraft = {
@@ -299,6 +302,7 @@ describe('MissionsService', () => {
       expect(result).toEqual(updatedDraft);
     });
 
+
     it('updates the latest draft when one exists', async () => {
       const existingDraft = {
         id: 'draft-1',
@@ -336,5 +340,7 @@ describe('MissionsService', () => {
       expect(result).toEqual(updatedDraft);
     });
   });
+
+
 
 });

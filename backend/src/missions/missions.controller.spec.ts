@@ -5,6 +5,7 @@ import {
   ListMissionsQueryDto,
   MissionListSort,
 } from './dto/list-missions-query.dto';
+import { SaveDraftDto } from './dto/save-draft.dto';
 
 describe('MissionsController', () => {
   let controller: MissionsController;
@@ -13,6 +14,8 @@ describe('MissionsController', () => {
     listPublicMissions: jest.Mock;
     getMissionSubmissions: jest.Mock;
     getMission: jest.Mock;
+
+    saveDraft: jest.Mock;
   };
 
   beforeEach(() => {
@@ -26,6 +29,7 @@ describe('MissionsController', () => {
       getMissionSubmissions: jest.fn(),
 
       getMission: jest.fn(),
+      saveDraft: jest.fn(),
     };
 
     controller = new MissionsController(
@@ -61,6 +65,8 @@ describe('MissionsController', () => {
   });
 
 
+
+
   it('propagates ForbiddenException when user is not the mission owner', async () => {
     missionsService.getMissionSubmissions.mockRejectedValue(
       new ForbiddenException(),
@@ -86,11 +92,29 @@ describe('MissionsController', () => {
   });
 
 
+
+
   it('forwards the mission id to the service and returns the result', async () => {
     const mockMission = { id: 'mission-1', title: 'Test' };
     missionsService.getMission.mockResolvedValue(mockMission);
 
     await expect(controller.detail('mission-1')).resolves.toEqual(mockMission);
     expect(missionsService.getMission).toHaveBeenCalledWith('mission-1');
+  });
+
+  it('delegates saveDraft to the service with the authenticated user address and dto', async () => {
+    const dto: SaveDraftDto = {
+      title: 'My Draft',
+      data: { field: 'value' },
+    };
+    const mockDraft = { id: 'draft-1', ownerAddress: '0xabc', ...dto };
+    missionsService.saveDraft.mockResolvedValue(mockDraft);
+
+    const result = await controller.saveDraft(dto, {
+      user: { userId: 'user-1', address: '0xabc' },
+    } as any);
+
+    expect(result).toEqual(mockDraft);
+    expect(missionsService.saveDraft).toHaveBeenCalledWith('0xabc', dto);
   });
 });
