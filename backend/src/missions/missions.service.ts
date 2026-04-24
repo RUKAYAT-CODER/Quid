@@ -79,6 +79,10 @@ export class MissionsService {
     return mission;
   }
 
+  saveDraft(id: string, body: string): { id: string; body: string } {
+    return { id, body };
+  }
+
   async getMissionSubmissions(
     missionId: string,
     ownerAddress: string,
